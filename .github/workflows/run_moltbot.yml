@@ -6,15 +6,15 @@ on:
       GEMINI_API_KEY:
         description: 'Google Gemini API Key (Required for AI)'
         required: true
-        default: ''
+        type: string
       DISCORD_TOKEN:
         description: 'Discord Bot Token (Optional - To connect to Discord)'
         required: false
-        default: ''
+        type: string
       ANTHROPIC_API_KEY:
         description: 'Anthropic API Key (Optional)'
         required: false
-        default: ''
+        type: string
 
 jobs:
   run_moltbot:
@@ -26,42 +26,48 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: 22
 
       - name: Install pnpm
-        run: npm install -g pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
 
       - name: Unzip OpenClaw Source Code
         run: |
-          unzip -o moltbot_light.zip -d openclaw_source
+          unzip -o moltbot_full.zip -d openclaw_source
           cd openclaw_source
-          pnpm install
+          # 強制建立 scripts 資料夾和 postinstall.js，防止安裝時報錯
+          mkdir -p scripts
+          echo "console.log('Postinstall skipped');" > scripts/postinstall.js
 
-      - name: Run OpenClaw Gateway
+      - name: Install Dependencies
         run: |
           cd openclaw_source
-          # Create config.yaml based on provided keys
-          echo "models:" > config.yaml
-          if [ -n "${{ inputs.GEMINI_API_KEY }}" ]; then
-            echo "  gemini:" >> config.yaml
-            echo "    apiKey: \"${{ inputs.GEMINI_API_KEY }}\"" >> config.yaml
-          fi
-          if [ -n "${{ inputs.ANTHROPIC_API_KEY }}" ]; then
-            echo "  anthropic:" >> config.yaml
-            echo "    apiKey: \"${{ inputs.ANTHROPIC_API_KEY }}\"" >> config.yaml
-          fi
-          
-          # Discord configuration
-          if [ -n "${{ inputs.DISCORD_TOKEN }}" ]; then
-            echo "channels:" >> config.yaml
-            echo "  discord:" >> config.yaml
-            echo "    enabled: true" >> config.yaml
-            echo "    token: \"${{ inputs.DISCORD_TOKEN }}\"" >> config.yaml
-          fi
-          
-          # Start the gateway
-          pnpm openclaw gateway --config config.yaml
+          # 使用 --ignore-scripts 完全跳過任何可能報錯的腳本
+          pnpm install --ignore-scripts
+
+      - name: Run OpenClaw Gateway
         env:
-          GEMINI_API_KEY: ${{ inputs.GEMINI_API_KEY }}
-          DISCORD_TOKEN: ${{ inputs.DISCORD_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ inputs.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ github.event.inputs.GEMINI_API_KEY }}
+          DISCORD_TOKEN: ${{ github.event.inputs.DISCORD_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ github.event.inputs.ANTHROPIC_API_KEY }}
+        run: |
+          cd openclaw_source
+          
+          # 自動產生配置檔
+          cat <<EOF > config.yaml
+          models:
+            gemini:
+              apiKey: "$GEMINI_API_KEY"
+            anthropic:
+              apiKey: "$ANTHROPIC_API_KEY"
+          channels:
+            discord:
+              enabled: true
+              token: "$DISCORD_TOKEN"
+          EOF
+          
+          echo "🚀 Starting OpenClaw Gateway..."
+          # 啟動龍蝦
+          pnpm openclaw gateway --config config.yaml
