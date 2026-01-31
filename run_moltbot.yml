@@ -3,9 +3,13 @@ name: Run OpenClaw (Moltbot)
 on:
   workflow_dispatch:
     inputs:
+      GEMINI_API_KEY:
+        description: 'Google Gemini API Key (Recommended - Free)'
+        required: false
+        default: ''
       ANTHROPIC_API_KEY:
-        description: 'Anthropic API Key (Required for Claude)'
-        required: true
+        description: 'Anthropic API Key (Optional)'
+        required: false
         default: ''
       OPENAI_API_KEY:
         description: 'OpenAI API Key (Optional)'
@@ -29,22 +33,31 @@ jobs:
 
       - name: Unzip OpenClaw Source Code
         run: |
-          unzip moltbot_light.zip -d openclaw_source
+          unzip -o moltbot_light.zip -d openclaw_source
           cd openclaw_source
           pnpm install
 
       - name: Run OpenClaw Gateway
         run: |
           cd openclaw_source
-          # Create a basic config file with the provided API key
-          echo "models.anthropic.apiKey: \${{ inputs.ANTHROPIC_API_KEY }}" > config.yaml
-          echo "models.openai.apiKey: \${{ inputs.OPENAI_API_KEY }}" >> config.yaml
+          # Create config.yaml based on provided keys
+          echo "models:" > config.yaml
+          if [ -n "${{ inputs.GEMINI_API_KEY }}" ]; then
+            echo "  gemini:" >> config.yaml
+            echo "    apiKey: \"${{ inputs.GEMINI_API_KEY }}\"" >> config.yaml
+          fi
+          if [ -n "${{ inputs.ANTHROPIC_API_KEY }}" ]; then
+            echo "  anthropic:" >> config.yaml
+            echo "    apiKey: \"${{ inputs.ANTHROPIC_API_KEY }}\"" >> config.yaml
+          fi
+          if [ -n "${{ inputs.OPENAI_API_KEY }}" ]; then
+            echo "  openai:" >> config.yaml
+            echo "    apiKey: \"${{ inputs.OPENAI_API_KEY }}\"" >> config.yaml
+          fi
           
-          # Start the gateway (Note: This will run until timeout or failure)
+          # Start the gateway
           pnpm openclaw gateway --config config.yaml
         env:
+          GEMINI_API_KEY: ${{ inputs.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ inputs.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ inputs.OPENAI_API_KEY }}
-          # Note: GitHub Actions is not suitable for long-running services like a bot gateway.
-          # This is for demonstration/testing purposes only.
-          # A real deployment requires a persistent service like Codespaces, VPS, or a dedicated cloud service.
