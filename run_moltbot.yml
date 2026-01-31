@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       GEMINI_API_KEY:
-        description: 'Google Gemini API Key (Recommended - Free)'
+        description: 'Google Gemini API Key (Required for AI)'
+        required: true
+        default: ''
+      DISCORD_TOKEN:
+        description: 'Discord Bot Token (Optional - To connect to Discord)'
         required: false
         default: ''
       ANTHROPIC_API_KEY:
         description: 'Anthropic API Key (Optional)'
-        required: false
-        default: ''
-      OPENAI_API_KEY:
-        description: 'OpenAI API Key (Optional)'
         required: false
         default: ''
 
@@ -50,14 +50,18 @@ jobs:
             echo "  anthropic:" >> config.yaml
             echo "    apiKey: \"${{ inputs.ANTHROPIC_API_KEY }}\"" >> config.yaml
           fi
-          if [ -n "${{ inputs.OPENAI_API_KEY }}" ]; then
-            echo "  openai:" >> config.yaml
-            echo "    apiKey: \"${{ inputs.OPENAI_API_KEY }}\"" >> config.yaml
+          
+          # Discord configuration
+          if [ -n "${{ inputs.DISCORD_TOKEN }}" ]; then
+            echo "channels:" >> config.yaml
+            echo "  discord:" >> config.yaml
+            echo "    enabled: true" >> config.yaml
+            echo "    token: \"${{ inputs.DISCORD_TOKEN }}\"" >> config.yaml
           fi
           
           # Start the gateway
           pnpm openclaw gateway --config config.yaml
         env:
           GEMINI_API_KEY: ${{ inputs.GEMINI_API_KEY }}
+          DISCORD_TOKEN: ${{ inputs.DISCORD_TOKEN }}
           ANTHROPIC_API_KEY: ${{ inputs.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY: ${{ inputs.OPENAI_API_KEY }}
