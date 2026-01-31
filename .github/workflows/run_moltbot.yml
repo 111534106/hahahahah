@@ -1,0 +1,67 @@
+name: 🚀 Run OpenClaw (Moltbot) v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      GEMINI_API_KEY:
+        description: 'Google Gemini API Key (Required for AI)'
+        required: true
+        default: ''
+      DISCORD_TOKEN:
+        description: 'Discord Bot Token (Optional - To connect to Discord)'
+        required: false
+        default: ''
+      ANTHROPIC_API_KEY:
+        description: 'Anthropic API Key (Optional)'
+        required: false
+        default: ''
+
+jobs:
+  run_moltbot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Unzip OpenClaw Source Code
+        run: |
+          unzip -o moltbot_light.zip -d openclaw_source
+          cd openclaw_source
+          pnpm install
+
+      - name: Run OpenClaw Gateway
+        run: |
+          cd openclaw_source
+          # Create config.yaml based on provided keys
+          echo "models:" > config.yaml
+          if [ -n "${{ inputs.GEMINI_API_KEY }}" ]; then
+            echo "  gemini:" >> config.yaml
+            echo "    apiKey: \"${{ inputs.GEMINI_API_KEY }}\"" >> config.yaml
+          fi
+          if [ -n "${{ inputs.ANTHROPIC_API_KEY }}" ]; then
+            echo "  anthropic:" >> config.yaml
+            echo "    apiKey: \"${{ inputs.ANTHROPIC_API_KEY }}\"" >> config.yaml
+          fi
+          
+          # Discord configuration
+          if [ -n "${{ inputs.DISCORD_TOKEN }}" ]; then
+            echo "channels:" >> config.yaml
+            echo "  discord:" >> config.yaml
+            echo "    enabled: true" >> config.yaml
+            echo "    token: \"${{ inputs.DISCORD_TOKEN }}\"" >> config.yaml
+          fi
+          
+          # Start the gateway
+          pnpm openclaw gateway --config config.yaml
+        env:
+          GEMINI_API_KEY: ${{ inputs.GEMINI_API_KEY }}
+          DISCORD_TOKEN: ${{ inputs.DISCORD_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ inputs.ANTHROPIC_API_KEY }}
