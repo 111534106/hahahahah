@@ -1,0 +1,50 @@
+name: Run OpenClaw (Moltbot)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ANTHROPIC_API_KEY:
+        description: 'Anthropic API Key (Required for Claude)'
+        required: true
+        default: ''
+      OPENAI_API_KEY:
+        description: 'OpenAI API Key (Optional)'
+        required: false
+        default: ''
+
+jobs:
+  run_moltbot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Unzip OpenClaw Source Code
+        run: |
+          unzip moltbot_light.zip -d openclaw_source
+          cd openclaw_source
+          pnpm install
+
+      - name: Run OpenClaw Gateway
+        run: |
+          cd openclaw_source
+          # Create a basic config file with the provided API key
+          echo "models.anthropic.apiKey: \${{ inputs.ANTHROPIC_API_KEY }}" > config.yaml
+          echo "models.openai.apiKey: \${{ inputs.OPENAI_API_KEY }}" >> config.yaml
+          
+          # Start the gateway (Note: This will run until timeout or failure)
+          pnpm openclaw gateway --config config.yaml
+        env:
+          ANTHROPIC_API_KEY: ${{ inputs.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ inputs.OPENAI_API_KEY }}
+          # Note: GitHub Actions is not suitable for long-running services like a bot gateway.
+          # This is for demonstration/testing purposes only.
+          # A real deployment requires a persistent service like Codespaces, VPS, or a dedicated cloud service.
